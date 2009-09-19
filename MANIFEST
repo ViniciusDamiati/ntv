@@ -1,0 +1,10 @@
+README
+ntv
+setup.py
+NTV/NTV.py
+NTV/NTV_UI.py
+NTV/__init__.py
+NTV/details.py
+NTV/icons_rc.py
+NTV/mpl_pyqt4_widget.py
+NTV/mpl_pyqt4_widget_new.py
