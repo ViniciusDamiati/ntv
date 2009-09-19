@@ -1,0 +1,26 @@
+This program is an astronomical data viewer. It is my attempt at being a clone to ATV for idl or DS9.
+It is missing features and could have some of the ones worked out better, but It is capable of being
+used to view fits files, and view properties of selected stars.
+
+To install
+from the command line run python setup.py install to have it install to the default site packages 
+directory.
+
+To run the program you can launch it with ntv from the command line.
+
+This can also be embeded into python interactive session.
+When in python,
+from NTV import *
+some_instance_name = NTV.embed()
+
+to show an array:
+some_instance_name.showArray()
+
+Requirements:
+---------------
+Numpy
+Scipy
+Matplotlib
+Pyfist
+PyQt4
+Python > 2.6 OR multiprocessing package installed
