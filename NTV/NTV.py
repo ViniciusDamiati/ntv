@@ -126,14 +126,9 @@ class NTV(QMainWindow,Ui_NTV):
     def __init__(self,file=None,parent=None,pipe=None):
         super(NTV,self).__init__(parent)
         self.setupUi(self)
+        #change the scope of the pipe object in order for it to be referenced from other parts of the class
+        self.pipe = pipe
         
-        #This checks for files loaded with the program from the command line
-        if file != None:
-            if file.find('fits') != -1 or file.find('FIT')!=-1:
-                self.path = file
-                self.loadinfo()
-            else:
-                self.filelab.setText('<font color=red>Invalid Format</font>')
         
         
         #Constants used by program, funloaded gets set to 1 when there is a file loaded, provides a check for manipulating functions
@@ -156,8 +151,6 @@ class NTV(QMainWindow,Ui_NTV):
         self.cmapbox.insertItems(0, self.cmaplist)
         self.cmapbox.setCurrentIndex(self.cmaplist.index('gray'))
         
-        #change the scope of the pipe object in order for it to be referenced from other parts of the class
-        self.pipe = pipe
         
         #Checks to see if a pipe was passes, ie if the program is being used in embeded mode, if so, starts the thread that will listen to the pipe
         if pipe != None:
@@ -173,6 +166,16 @@ class NTV(QMainWindow,Ui_NTV):
         QObject.connect(self.actionOpen,SIGNAL('triggered()'),self.open)
         QObject.connect(self.actionQuit,SIGNAL('triggered()'),self.close)
         QObject.connect(self.pushButton,SIGNAL('clicked()'),self.getclick)
+
+        #This checks for files loaded with the program from the command line
+        if file != None:
+            if file.find('fits') != -1 or file.find('FIT')!=-1:
+                self.path = file
+                self.loadinfo()
+            else:
+                self.filelab.setText('<font color=red>Invalid Format</font>')
+
+
     
     def rec_data(self,array):
         '''

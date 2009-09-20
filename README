@@ -10,7 +10,7 @@ To run the program you can launch it with ntv from the command line.
 
 This can also be embeded into python interactive session.
 When in python,
-from NTV import *
+from NTV import NTV
 some_instance_name = NTV.embed()
 
 to show an array:
