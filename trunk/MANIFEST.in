@@ -1,2 +1,2 @@
-include ntv README
+include ntv README changelog
 recursive-include NTV/*

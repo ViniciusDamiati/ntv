@@ -6,6 +6,7 @@ import pyfits as pf
 import matplotlib.pyplot
 import sys
 import time
+import scipy as sp
 
 from NTV_UI import Ui_NTV
 from details import Ui_Dialog
@@ -164,6 +165,10 @@ class NTV(QMainWindow,Ui_NTV):
         QObject.connect(self.actionOpen,SIGNAL('triggered()'),self.open)
         QObject.connect(self.actionQuit,SIGNAL('triggered()'),self.close)
         QObject.connect(self.pushButton,SIGNAL('clicked()'),self.getclick)
+        
+        #fuctions for minimap scaling
+        self.lin = lambda x,max,min: (255/(max-min))*x-(255*max/(max-min))+255
+        self.func = self.lin
 
         #This checks for files loaded with the program from the command line
         if file != None:
@@ -243,7 +248,7 @@ class NTV(QMainWindow,Ui_NTV):
                 #ignore the problems and just not update the image, yet not print out warnings to the terminal. In some future
                 #version, it would be good to properly handle the edge events, to mantain preview
                 try:
-                    self.impix = self.image[event.ydata-self.previewsize:event.ydata+self.previewsize,event.xdata-self.previewsize:event.xdata+self.previewsize].copy()
+                    self.impix = self.imageedit[event.ydata-self.previewsize:event.ydata+self.previewsize,event.xdata-self.previewsize:event.xdata+self.previewsize].copy()
                     #This next few lines is to simply set the values of several pixels to white in order to draw a cross hair
                     self.impix[18,20] = 255
                     self.impix[19,20] = 255
@@ -257,14 +262,18 @@ class NTV(QMainWindow,Ui_NTV):
                     self.impix = rebin(self.impix,5)
                 except:
                     pass
-                #This next bit is to convert the numpy array into something that can be displayed as a pixmap, It needs to be updated for clipping
-                #and also applying the colormap!
+                #This next bit is to convert the numpy array into something that can be displayed as a pixmap, It needs to be updated to
+                #applying the colormap!
+                self.impix = self.func(self.impix,self.mx,self.imageedit.min())
+                self.impix[np.where(self.impix>255)] = 255
                 gray = np.require(self.impix, np.uint8, 'C')
                 h, w = gray.shape
                 result = QImage(gray.data, w, h, QImage.Format_Indexed8)
                 result.ndarray = gray
+                #COLORTABLE = [~((i + (i<<8) + (i<<16))) for i in range(255,-1,-1)]
                 for i in range(256):
                     result.setColor(i, QColor(i, i, i).rgb())
+                #result.setColorTable(COLORTABLE)
                 self.minipix.setPixmap(QPixmap(result))
                 self.pixval.setText(str(self.image[event.ydata,event.xdata]))
     def sliderupdate(self):
@@ -332,7 +341,7 @@ class NTV(QMainWindow,Ui_NTV):
         #the ratio of of the silder position over 100 added to the minimum value
         self.mx = (self.imageedit.max()-self.imageedit.min())*self.clipslide.value()/100. + self.imageedit.min()
         #updated the canvas and draw
-        self.imshow.canvas.ax.imshow(self.imageedit,vmax=float(self.mx),vmin=self.imageedit.min(),cmap=self.z,interpolation=None)
+        self.imdata = self.imshow.canvas.ax.imshow(self.imageedit,vmax=float(self.mx),vmin=self.imageedit.min(),cmap=self.z,interpolation=None,alpha=1)
         self.imshow.canvas.draw()
 
 class myThread(QThread,NTV):
