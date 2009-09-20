@@ -19,7 +19,8 @@ some_instance_name.showArray()
 Requirements:
 ---------------
 Numpy
-Scipy
+Scipy >0.7.0 I think, there are some complains about numpy.test, your 
+version may work, but mine does with this version.
 Matplotlib
 Pyfist
 PyQt4
