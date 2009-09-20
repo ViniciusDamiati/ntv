@@ -129,8 +129,6 @@ class NTV(QMainWindow,Ui_NTV):
         #change the scope of the pipe object in order for it to be referenced from other parts of the class
         self.pipe = pipe
         
-        
-        
         #Constants used by program, funloaded gets set to 1 when there is a file loaded, provides a check for manipulating functions
         #previewsize is a constant used to get the size of the cut for the minimap.
         self.funloaded = 0

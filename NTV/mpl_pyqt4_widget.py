@@ -30,10 +30,10 @@ class MyMplCanvas(FigureCanvas):
 		FigureCanvas.updateGeometry(self)
 
 	def format_labels(self):
-		self.ax.set_title(self.PlotTitle)
-		self.ax.title.set_fontsize(10)
-		self.ax.set_xlabel(self.xtitle, fontsize = 9)
-		self.ax.set_ylabel(self.ytitle, fontsize = 9)
+		#self.ax.set_title(self.PlotTitle)
+		#self.ax.title.set_fontsize(10)
+		#self.ax.set_xlabel(self.xtitle, fontsize = 9)
+		#self.ax.set_ylabel(self.ytitle, fontsize = 9)
 		labels_x = self.ax.get_xticklabels()
 		labels_y = self.ax.get_yticklabels()
 
