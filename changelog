@@ -1,7 +1,15 @@
 ### version 0.1.2 ###
 nate lust: 	removed arbitrary plot labels, and updated readme
 
-### Current ###
+### version 0.2 ###
 nate lust: 	created changelog
 		updated the minimap preview to reflect current scale appropriately
 		updated manifest.in to include changelog
+		Fixed issue where multiple button presses would create problems when picking star
+		Fixed issue with details view generation, occationally a float division error was
+			being generated when the fitgaussian function was failing
+		Added the ability to change the aperature size and annulus size from within the 
+			dialog box by clicking and draging the positions.
+		Fixed a bug where the background value was not being subtracted out of the photometry
+		TO DO: still need to get color map correct
+### currentt ###

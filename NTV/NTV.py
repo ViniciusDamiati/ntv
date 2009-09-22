@@ -84,38 +84,126 @@ class details_view(QDialog,Ui_Dialog):
     def __init__(self,frame,frameedit,realx,realy,apsize,clipmax,clipmin,color,parent=None):
         super(details_view,self).__init__(parent)
         self.setupUi(self)
-        cutsize = apsize*4
-        apin    = apsize*2
-        apout   = apsize*3
+        #set the inputs to class members and initialize some variables needed in plotting
+        self.clipmax = clipmax
+        self.clipmin = clipmin
+        self.color = color
+        self.frame = frame
+        self.frameedit = frameedit
+        self.cutsize = apsize*4
+        self.apsize = apsize
+        self.radin    = apsize*2
+        self.radout   = apsize*3
+        self.artist = None
         #Create a temporary view to centroid with, will be overridden when the true center is found
-        view = frame[realy-cutsize:realy+cutsize,realx-cutsize:realx+cutsize]
+        view = frame[realy-self.cutsize:realy+self.cutsize,realx-self.cutsize:realx+self.cutsize]
         #Finding center and correcting for the cut size
         self.y,self.x = fitgaussian(view)[[1,2]]
-        self.totalx = realx - cutsize + self.x
-        self.totaly = realy - cutsize + self.y
-        #Creating the new view based on the correct positions. This is the view the radial profile will be
-        #generated from
-        view = frame[self.totaly-cutsize:self.totaly+cutsize,self.totalx-cutsize:self.totalx+cutsize]
-        #View 2 is view of the minimap. This is required to be separate since there may be either a maping of
-        #log or linear scale
-        view2 = frameedit[self.totaly-cutsize:self.totaly+cutsize,self.totalx-cutsize:self.totalx+cutsize]
-        #Sow the view2 and set associated text
-        self.vis.canvas.ax.imshow(view2,vmax=clipmax,vmin=clipmin,cmap=color)
-        self.yin,self.xin= np.indices((view.shape))
+        #this is a fail safe for if fitgaussian fails
+        if np.abs(self.y) > 2*self.cutsize or np.abs(self.x) > 2*self.cutsize:
+            self.y = self.cutsize
+            self.x = self.cutsize
+        self.totalx = realx - self.cutsize + self.x
+        self.totaly = realy - self.cutsize + self.y
         self.xval.setText(str(self.totalx))
         self.yval.setText(str(self.totaly))
+        
+        self.radprof.canvas.fig.canvas.mpl_connect('pick_event',self.on_pic)
+        self.radprof.canvas.fig.canvas.mpl_connect('button_release_event',self.button_release_callback)
+        self.radprof.canvas.fig.canvas.mpl_connect('motion_notify_event',self.motion_notify_callback)
+        QObject.connect(self,SIGNAL('paint'),self.radprof.repaint)
+        #self.draw_canvas()
+        #This thread is a hack to get the canvas to redraw properly on the first draw. futures redraws are handled by the draw_cancas itself.
+        temp = myThread2(parent=self)
+        temp.start()
+        self.exec_()
+    def dummy(self):
+        '''
+        This is the function that facillitates the posponed drawing of the plot via the separate thread.
+        '''
+        self.radprof.canvas.fig.canvas.mpl_connect('draw_event',self.draw_callback)
+        self.vis.canvas.ax.cla()
+        self.vis.canvas.format_labels()
+        self.draw_canvas()
+        
+    def draw_canvas(self):
+        #Creating the new view based on the correct positions. This is the view the radial profile will be
+        #generated from
+        self.view = self.frame[self.totaly-self.cutsize:self.totaly+self.cutsize,self.totalx-self.cutsize:self.totalx+self.cutsize]
+        #View 2 is view of the minimap. This is required to be separate since there may be either a maping of
+        #log or linear scale
+        self.view2 = self.frameedit[self.totaly-self.cutsize:self.totaly+self.cutsize,self.totalx-self.cutsize:self.totalx+self.cutsize]
+        #Sow the view2 and set associated text
+        self.vis.canvas.ax.imshow(self.view2,vmax=self.clipmax,vmin=self.clipmin,cmap=self.color)
+        self.yin,self.xin= np.indices((self.view.shape))
         #create a distance array and create the radial profile, display this information to screen based on given
         #aperature size and anulus
-        self.dist = ((cutsize-self.xin)**2+(cutsize-self.yin)**2)**0.5
-        self.radprof.canvas.ax.plot(self.dist.flatten(),view.flatten(),'k.')
-        self.counts.setText(str(np.sum(view[np.where(self.dist<apsize)])))
-        self.background.setText(str(np.median(view[np.where(np.bitwise_and(self.dist>2*apsize,self.dist<3*apsize))])))
-        self.radprof.canvas.ax.axvline(apsize,color="g",label="Aperature")
-        self.radprof.canvas.ax.axvline(apin,color="r",label="Anulus")
-        self.radprof.canvas.ax.axvline(apout,color="r")
-        self.radprof.canvas.ax.legend()
-        self.exec_()
+        self.dist = ((self.cutsize-self.xin)**2+(self.cutsize-self.yin)**2)**0.5
+        self.radprof.canvas.ax.plot(self.dist.flatten(),self.view.flatten(),'k.')
+        #sum up the photons in anulus
+        self.photons = np.sum(self.view[np.where(self.dist<self.apsize)])
+        #get median backkground lvl
+        self.bphotons = np.median(self.view[np.where(np.bitwise_and(self.dist>self.radin,self.dist<self.radout))])
+        #update text and background
+        self.background.setText(str(self.bphotons))
+        self.photons -= len(np.where(self.dist<self.apsize))*self.bphotons
+        self.counts.setText(str(self.photons))
+        #Draw the interactive lines
+        self.ap = self.radprof.canvas.ax.axvline(self.apsize,color="g",label="Aperature",picker=5,animated=True)
+        self.rad1 = self.radprof.canvas.ax.axvline(self.radin,color="r",label="Anulus",picker=5,animated=True)
+        self.rad2 = self.radprof.canvas.ax.axvline(self.radout,color="r",picker=5,animated=True)
+        self.leg = self.radprof.canvas.ax.legend()
+        #format and draw the canvas
+        self.radprof.canvas.format_labels()
+        self.radprof.canvas.draw()
+        self.vis.canvas.draw()
+        self.radprof.canvas.format_labels()
+        #emit a paint signal to make sure the window is redrawn properly
+        self.emit(SIGNAL('paint'))
 
+    def on_pic(self,event):
+        self.artist = event
+    
+    def draw_callback(self,event):
+        self.bg = self.radprof.canvas.fig.canvas.copy_from_bbox(self.radprof.canvas.ax.bbox)
+        self.radprof.canvas.ax.draw_artist(self.ap)
+        self.radprof.canvas.ax.draw_artist(self.rad1)
+        self.radprof.canvas.ax.draw_artist(self.rad2)
+        self.radprof.canvas.ax.draw_artist(self.leg)
+        self.radprof.canvas.fig.canvas.blit(self.radprof.canvas.ax.bbox)
+        #emit a paint signal to make sure the window is redrawn properly
+        self.emit(SIGNAL('paint'))
+    
+    def onpick(self,event):
+        self.artist = event
+    
+    def button_release_callback(self,event):
+        if self.artist != None:
+            self.artist = None
+            self.apsize = self.ap.get_data()[0][0]
+            self.radin = self.rad1.get_data()[0][0]
+            self.radout = self.rad2.get_data()[0][0]
+            self.cutsize = 4*int(self.apsize)
+            if self.rad1.get_data()[0][0] < self.apsize:
+                self.radin = 2*self.apsize
+            if self.rad2.get_data()[0][0] < self.radin:
+                self.radout = self.radin+self.apsize
+            self.radprof.canvas.ax.cla()
+            self.radprof.canvas.format_labels()
+
+            self.draw_canvas()
+
+    def motion_notify_callback(self,event):
+        if self.artist != None:
+            x,y = event.xdata,event.ydata
+            self.artist.artist.set_xdata([x,x])
+            self.radprof.canvas.fig.canvas.restore_region(self.bg)
+            self.radprof.canvas.ax.draw_artist(self.ap)
+            self.radprof.canvas.ax.draw_artist(self.rad1)
+            self.radprof.canvas.ax.draw_artist(self.rad2)
+            self.radprof.canvas.ax.draw_artist(self.leg)
+            self.radprof.canvas.fig.canvas.blit(self.radprof.canvas.ax.bbox)
+    
 class NTV(QMainWindow,Ui_NTV):
     '''
     This is the main program. It implements the event loop, and handles user interaction.
@@ -131,9 +219,11 @@ class NTV(QMainWindow,Ui_NTV):
         self.pipe = pipe
         
         #Constants used by program, funloaded gets set to 1 when there is a file loaded, provides a check for manipulating functions
-        #previewsize is a constant used to get the size of the cut for the minimap.
+        #previewsize is a constant used to get the size of the cut for the minimap. cid is to initialize a check of weather the pic star
+        #button has been clicked yet or not.
         self.funloaded = 0
         self.previewsize = 20
+        self.cid = None
         
         #Set some UI elements
         self.sizeofcut.setText('3')
@@ -146,6 +236,7 @@ class NTV(QMainWindow,Ui_NTV):
         self.filelab.setText("<font color=red>Load File</font>")
         
         #populate the colormap drop down box with available color maps
+        print matplotlib.colors.Colormap(matplotlib.cm.datad.keys()[0])
         self.cmaplist = matplotlib.cm.datad.keys()
         self.cmapbox.insertItems(0, self.cmaplist)
         self.cmapbox.setCurrentIndex(self.cmaplist.index('gray'))
@@ -178,8 +269,6 @@ class NTV(QMainWindow,Ui_NTV):
             else:
                 self.filelab.setText('<font color=red>Invalid Format</font>')
 
-
-    
     def rec_data(self,array):
         '''
         This is the fucntion that is used to update the image variable of the class if the program is used in embeded mode, and an array is passed to the pipe.
@@ -192,7 +281,11 @@ class NTV(QMainWindow,Ui_NTV):
         This is just a wrapper class to pass the get star button event to the drawbox function. Uses the mpl backend to connect to the canvas object and get the event.
         '''
         if self.funloaded == 1:
+            #This if statement is a check to make sure to clear if the pick star box was clicked more than once
+            if self.cid != None:
+                self.imshow.canvas.fig.canvas.mpl_disconnect(self.cid)
             self.cid = self.imshow.canvas.fig.canvas.mpl_connect('button_press_event',self.drawbox)
+            
         
     def drawbox(self,event):
         '''
@@ -362,6 +455,19 @@ class myThread(QThread,NTV):
                 if len(self.data.shape) == 2:
                     self.emit(SIGNAL('got_it'),self.data)
             time.sleep(1)
+            
+class myThread2(QThread,details_view):
+    '''
+    This class is for internal use only, It simply delays the drawing of the radial profile till after the details view
+    instance has been created. This solves a problem where the axes were getting blacked out and a repaint was in need to 
+    be forced.
+    '''
+    def __init__(self,parent):
+        QThread.__init__(self)
+        QObject.connect(self,SIGNAL('redraw'),parent.dummy)
+    def run(self):
+        time.sleep(0.1)
+        self.emit(SIGNAL('redraw'))
 
 class embed():
     '''

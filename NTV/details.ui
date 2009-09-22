@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>554</height>
+    <width>415</width>
+    <height>565</height>
    </rect>
   </property>
   <property name="maximumSize">
    <size>
-    <width>400</width>
-    <height>560</height>
+    <width>415</width>
+    <height>565</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -25,15 +25,15 @@
   <widget class="MPL_Widget" name="radprof" native="true">
    <property name="geometry">
     <rect>
-     <x>0</x>
+     <x>10</x>
      <y>220</y>
-     <width>400</width>
+     <width>401</width>
      <height>330</height>
     </rect>
    </property>
    <property name="minimumSize">
     <size>
-     <width>400</width>
+     <width>300</width>
      <height>330</height>
     </size>
    </property>
