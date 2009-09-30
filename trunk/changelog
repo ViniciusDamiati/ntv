@@ -12,4 +12,29 @@ nate lust: 	created changelog
 			dialog box by clicking and draging the positions.
 		Fixed a bug where the background value was not being subtracted out of the photometry
 		TO DO: still need to get color map correct
-### currentt ###
+### version 0.3 ###
+nate lust:	Fixed a bug where you could set aperature diameter or annulus diameter to less than
+			zero.
+		Using the open functions of the drag and drop features from embeded mode should now
+			work, please test
+		Created a fits header viewer, invoke it with file header or ctl-h, needs a bit of work
+			for justifying the text
+		Updated the color pallet to be a bit more pleasing on eyes
+		Updated the centering in details view to a two step process, first find maximum pixel
+			in the cut size, recut based on that max position to ensure the fitgaussian
+			sees and fits appropriately
+		Put together three D support, still need to impliment playback support
+		Updated comments in code
+		Implemented play back support in threeD view window
+		Updated Details view to persist, and be nonModal, in order to have more than one open
+			at a time. May make it as an option to have them open in same window.
+		Fixed constraints and drawing problems in the details view for small arrays.
+		Updated details view to better handle small arrays, with small cutsizes
+		Updated minimap to handle edge events better, can go out toward edge, where pointer
+			will go up to within three pixels of the edge, ie the border of cursor will
+			go right to edge.Still need a bit of work with really small arrays
+		Updated minimap to scale more appropriately for small arrays, higher scale due to
+			smaller cut size, since array is much smaller. Still have a bit of issue with
+			the pointer in small minimap.
+		Updated spelling in details view.
+### current ###
