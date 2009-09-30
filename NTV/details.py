@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'details.ui'
 #
-# Created: Tue Sep 22 15:05:31 2009
+# Created: Tue Sep 29 15:18:25 2009
 #      by: PyQt4 UI code generator 4.5.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -60,18 +60,18 @@ class Ui_Dialog(object):
         self.yval.setObjectName("yval")
         self.gridLayout.addWidget(self.yval, 1, 1, 1, 1)
         self.horizontalLayout.addLayout(self.gridLayout)
-        self.frame = QtGui.QFrame(self.layoutWidget)
-        self.frame.setMinimumSize(QtCore.QSize(200, 200))
-        self.frame.setMaximumSize(QtCore.QSize(200, 200))
-        self.frame.setFrameShape(QtGui.QFrame.StyledPanel)
-        self.frame.setFrameShadow(QtGui.QFrame.Raised)
-        self.frame.setObjectName("frame")
-        self.vis = MPL_Widget1(self.frame)
+        self.qtframe = QtGui.QFrame(self.layoutWidget)
+        self.qtframe.setMinimumSize(QtCore.QSize(200, 200))
+        self.qtframe.setMaximumSize(QtCore.QSize(200, 200))
+        self.qtframe.setFrameShape(QtGui.QFrame.StyledPanel)
+        self.qtframe.setFrameShadow(QtGui.QFrame.Raised)
+        self.qtframe.setObjectName("qtframe")
+        self.vis = MPL_Widget1(self.qtframe)
         self.vis.setGeometry(QtCore.QRect(0, 0, 200, 200))
         self.vis.setMinimumSize(QtCore.QSize(200, 200))
         self.vis.setMaximumSize(QtCore.QSize(200, 200))
         self.vis.setObjectName("vis")
-        self.horizontalLayout.addWidget(self.frame)
+        self.horizontalLayout.addWidget(self.qtframe)
 
         self.retranslateUi(Dialog)
         QtCore.QMetaObject.connectSlotsByName(Dialog)

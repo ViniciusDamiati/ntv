@@ -2,6 +2,10 @@ This program is an astronomical data viewer. It is my attempt at being a clone t
 It is missing features and could have some of the ones worked out better, but It is capable of being
 used to view fits files, and view properties of selected stars.
 
+In details view, it is possible to select the aperature and annulus positions by dragging the vertical
+lines to the desired position. If a three dimentional array is loaded, there will be a window which pops
+up to navigate the desired image. There is also a playback function in that window, to play in movie mode.
+
 To install
 from the command line run python setup.py install to have it install to the default site packages 
 directory.

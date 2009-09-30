@@ -10,6 +10,8 @@ import scipy as sp
 
 from NTV_UI import Ui_NTV
 from details import Ui_Dialog
+from header_ui import Ui_header
+from threeD_ui import Ui_threeD
 
 #This function is used to scale up the side preview to the same size as the Qlabel,
 #for better viewing
@@ -74,6 +76,17 @@ def fitgaussian(data):
     p, success = optimize.leastsq(errorfunction, params)
     return p
 
+
+
+class header_view(QDialog,Ui_header):
+    def __init__(self,cards,parent=None):
+        super(header_view,self).__init__(parent)
+        self.setupUi(self)
+        for item in cards:
+            item = str(item)
+            self.cardlist.addItem(QListWidgetItem(item))         
+        self.exec_()
+
 #This class implements the dialog box to display information on a particular object that a user
 #defines by clicking on it.
 class details_view(QDialog,Ui_Dialog):
@@ -85,26 +98,37 @@ class details_view(QDialog,Ui_Dialog):
         super(details_view,self).__init__(parent)
         self.setupUi(self)
         #set the inputs to class members and initialize some variables needed in plotting
+        self.frame = frame
+        self.framey,self.framex = self.frame.shape
+        if self.framey > self.framex:
+            self.flimit = self.framey/2.
+        else:
+            self.flimit = self.framex/2.
         self.clipmax = clipmax
         self.clipmin = clipmin
         self.color = color
-        self.frame = frame
         self.frameedit = frameedit
         self.cutsize = apsize*4
         self.apsize = apsize
         self.radin    = apsize*2
         self.radout   = apsize*3
+        self.limit_check()
+        #sets the variable that will be used to pick lines and make decisions
         self.artist = None
         #Create a temporary view to centroid with, will be overridden when the true center is found
         view = frame[realy-self.cutsize:realy+self.cutsize,realx-self.cutsize:realx+self.cutsize]
+        maxy,maxx = np.where(view==view.max())
+        maxy = int(realy-self.cutsize+maxy[0])
+        maxx = int(realx-self.cutsize+maxx[0])
+        view = frame[maxy-self.cutsize:maxy+self.cutsize,maxx-self.cutsize:maxx+self.cutsize]-np.median(frame[maxy-self.cutsize:maxy+self.cutsize,maxx-self.cutsize:maxx+self.cutsize])
         #Finding center and correcting for the cut size
         self.y,self.x = fitgaussian(view)[[1,2]]
         #this is a fail safe for if fitgaussian fails
         if np.abs(self.y) > 2*self.cutsize or np.abs(self.x) > 2*self.cutsize:
             self.y = self.cutsize
             self.x = self.cutsize
-        self.totalx = realx - self.cutsize + self.x
-        self.totaly = realy - self.cutsize + self.y
+        self.totalx = maxx - self.cutsize + self.x
+        self.totaly = maxy - self.cutsize + self.y
         self.xval.setText(str(self.totalx))
         self.yval.setText(str(self.totaly))
         
@@ -116,7 +140,17 @@ class details_view(QDialog,Ui_Dialog):
         #This thread is a hack to get the canvas to redraw properly on the first draw. futures redraws are handled by the draw_cancas itself.
         temp = myThread2(parent=self)
         temp.start()
-        self.exec_()
+        self.show()
+    def limit_check(self):
+        if self.cutsize >= self.flimit:
+            self.cutsize = self.flimit-1
+        if self.radout >= self.flimit:
+            self.radout = 3*self.flimit/4.
+        if self.radin >= self.radout:
+            self.radin = self.flimit/2.
+        if self.apsize >= self.flimit:
+            self.apsize = self.flimit/4.
+    
     def dummy(self):
         '''
         This is the function that facillitates the posponed drawing of the plot via the separate thread.
@@ -149,8 +183,8 @@ class details_view(QDialog,Ui_Dialog):
         self.photons -= len(np.where(self.dist<self.apsize))*self.bphotons
         self.counts.setText(str(self.photons))
         #Draw the interactive lines
-        self.ap = self.radprof.canvas.ax.axvline(self.apsize,color="g",label="Aperature",picker=5,animated=True)
-        self.rad1 = self.radprof.canvas.ax.axvline(self.radin,color="r",label="Anulus",picker=5,animated=True)
+        self.ap = self.radprof.canvas.ax.axvline(self.apsize,color="g",label="Aperture",picker=5,animated=True)
+        self.rad1 = self.radprof.canvas.ax.axvline(self.radin,color="r",label="Annulus",picker=5,animated=True)
         self.rad2 = self.radprof.canvas.ax.axvline(self.radout,color="r",picker=5,animated=True)
         self.leg = self.radprof.canvas.ax.legend()
         #format and draw the canvas
@@ -162,10 +196,16 @@ class details_view(QDialog,Ui_Dialog):
         self.emit(SIGNAL('paint'))
 
     def on_pic(self,event):
+        '''
+        This function is called when one of the vertical lines is selected, set the line selected
+        to the line to be edited.
+        '''
         self.artist = event
     
     def draw_callback(self,event):
+        #grab the current state of the canvas, inorder to quickly blit the background
         self.bg = self.radprof.canvas.fig.canvas.copy_from_bbox(self.radprof.canvas.ax.bbox)
+        #redraw each of the member elements during dragging.
         self.radprof.canvas.ax.draw_artist(self.ap)
         self.radprof.canvas.ax.draw_artist(self.rad1)
         self.radprof.canvas.ax.draw_artist(self.rad2)
@@ -174,35 +214,54 @@ class details_view(QDialog,Ui_Dialog):
         #emit a paint signal to make sure the window is redrawn properly
         self.emit(SIGNAL('paint'))
     
-    def onpick(self,event):
-        self.artist = event
     
     def button_release_callback(self,event):
+        '''
+        called when a button is released
+        '''
         if self.artist != None:
+            #Set the artist to none, so that mouse motion events will be turned off.
             self.artist = None
+            # get the current radii for the ap and annulus inorder to redraw the figure
             self.apsize = self.ap.get_data()[0][0]
             self.radin = self.rad1.get_data()[0][0]
             self.radout = self.rad2.get_data()[0][0]
+            #rescale the view size based on the current aperature size
             self.cutsize = 4*int(self.apsize)
-            if self.rad1.get_data()[0][0] < self.apsize:
+            #check that the annulus rings are in proper orientation, ie inside the cutview, and r1 < r2
+            if self.rad1.get_data()[0][0] < self.apsize or self.rad1.get_data()[0][0] > 1.5*self.cutsize:
                 self.radin = 2*self.apsize
-            if self.rad2.get_data()[0][0] < self.radin:
+            if self.rad2.get_data()[0][0] < self.radin or self.rad2.get_data()[0][0] > 1.5*self.cutsize:
                 self.radout = self.radin+self.apsize
+            #clear and format the axis to prevent memory overflow
             self.radprof.canvas.ax.cla()
             self.radprof.canvas.format_labels()
-
+            self.limit_check()
+            #redraw the canvas
             self.draw_canvas()
 
     def motion_notify_callback(self,event):
+        '''
+        This function gets called as the mouse moves when a line artist has been selected, it
+        updates the the lines as they get dragged around
+        '''
+        #check to make sure there is a line selected
         if self.artist != None:
+            #get the current x and y mouse positions
             x,y = event.xdata,event.ydata
-            self.artist.artist.set_xdata([x,x])
-            self.radprof.canvas.fig.canvas.restore_region(self.bg)
-            self.radprof.canvas.ax.draw_artist(self.ap)
-            self.radprof.canvas.ax.draw_artist(self.rad1)
-            self.radprof.canvas.ax.draw_artist(self.rad2)
-            self.radprof.canvas.ax.draw_artist(self.leg)
-            self.radprof.canvas.fig.canvas.blit(self.radprof.canvas.ax.bbox)
+            #make sure the mouse is in the canvas
+            if x != None:
+                #make sure you dont move past zero, as negitive radius is meaningless
+                if x >0:
+                    #update the position of selected artist and blit the figure. not really a full
+                    #redraw
+                    self.artist.artist.set_xdata([x,x])
+                    self.radprof.canvas.fig.canvas.restore_region(self.bg)
+                    self.radprof.canvas.ax.draw_artist(self.ap)
+                    self.radprof.canvas.ax.draw_artist(self.rad1)
+                    self.radprof.canvas.ax.draw_artist(self.rad2)
+                    self.radprof.canvas.ax.draw_artist(self.leg)
+                    self.radprof.canvas.fig.canvas.blit(self.radprof.canvas.ax.bbox)
     
 class NTV(QMainWindow,Ui_NTV):
     '''
@@ -222,8 +281,12 @@ class NTV(QMainWindow,Ui_NTV):
         #previewsize is a constant used to get the size of the cut for the minimap. cid is to initialize a check of weather the pic star
         #button has been clicked yet or not.
         self.funloaded = 0
-        self.previewsize = 20
+        self.previewsetting = 20
+        self.previewsize = self.previewsetting
+        self.rebinfactor = 200/self.previewsize/2
         self.cid = None
+        self.head = None
+        self.imagecube = None
         
         #Set some UI elements
         self.sizeofcut.setText('3')
@@ -236,7 +299,6 @@ class NTV(QMainWindow,Ui_NTV):
         self.filelab.setText("<font color=red>Load File</font>")
         
         #populate the colormap drop down box with available color maps
-        print matplotlib.colors.Colormap(matplotlib.cm.datad.keys()[0])
         self.cmaplist = matplotlib.cm.datad.keys()
         self.cmapbox.insertItems(0, self.cmaplist)
         self.cmapbox.setCurrentIndex(self.cmaplist.index('gray'))
@@ -254,6 +316,7 @@ class NTV(QMainWindow,Ui_NTV):
         QObject.connect(self.lincheck,SIGNAL('toggled(bool)'),self.scale)
         QObject.connect(self.logcheck,SIGNAL('toggled(bool)'),self.scale)
         QObject.connect(self.actionOpen,SIGNAL('triggered()'),self.open)
+        QObject.connect(self.actionHeader,SIGNAL('triggered()'),self.header)
         QObject.connect(self.actionQuit,SIGNAL('triggered()'),self.close)
         QObject.connect(self.pushButton,SIGNAL('clicked()'),self.getclick)
         
@@ -268,12 +331,34 @@ class NTV(QMainWindow,Ui_NTV):
                 self.loadinfo()
             else:
                 self.filelab.setText('<font color=red>Invalid Format</font>')
-
+    def check_preview(self):
+        if self.image.shape[0]<self.previewsize*2 or self.image.shape[1]<self.previewsize*2:
+            self.previewsize = 5
+            self.rebinfactor=200/self.previewsize/2
+    def change_frame(self,newnum):
+        self.image = self.imagecube[newnum]
+        self.scale()
+    def header(self):
+        '''
+        This function serves to create a header_view instance to show the header information in a dialog box
+        '''
+        if self.funloaded ==1:
+            if self.head != None:
+                self.head_view = header_view(self.head.ascardlist())
     def rec_data(self,array):
         '''
         This is the fucntion that is used to update the image variable of the class if the program is used in embeded mode, and an array is passed to the pipe.
         '''
-        self.image = array
+        self.pipe = None
+        #Load the data into a cube and set the image to the first entry, if it is a threed cube
+        if len(array.shape) == 3:
+            #this will close a pre existing window if one is open.
+            if self.imagecube != None:
+                self.threed_win.close()
+            self.image = array[0]
+            self.imagecube = array
+        else:
+            self.image = array
         self.loadinfo()
     
     def getclick(self):
@@ -295,7 +380,7 @@ class NTV(QMainWindow,Ui_NTV):
             #get aperature size from size of cut widget
             cutv = int(self.sizeofcut.text())
             #create an instance of details_view class
-            self.dbox = details_view(self.image,self.imageedit,event.xdata,event.ydata,cutv,self.mx,self.imageedit.min(),self.z)
+            details_view(self.image,self.imageedit,event.xdata,event.ydata,cutv,self.mx,self.imageedit.min(),self.z)
             #disconnect the canvas from clicks, so that it can still be used for functions such as zooming etc.
             self.imshow.canvas.fig.canvas.mpl_disconnect(self.cid)
 
@@ -337,24 +422,50 @@ class NTV(QMainWindow,Ui_NTV):
         if self.funloaded == 1:
             #makes sure the mouse is on the data canvas
             if event.ydata != None and event.xdata != None:
-                #The try statement is to catch the problems that occur with cutting the numpy array on the boundary, aka
-                #ignore the problems and just not update the image, yet not print out warnings to the terminal. In some future
-                #version, it would be good to properly handle the edge events, to mantain preview
-                try:
-                    self.impix = self.imageedit[event.ydata-self.previewsize:event.ydata+self.previewsize,event.xdata-self.previewsize:event.xdata+self.previewsize].copy()
-                    #This next few lines is to simply set the values of several pixels to white in order to draw a cross hair
-                    self.impix[18,20] = 255
-                    self.impix[19,20] = 255
-                    self.impix[21,20] = 255
-                    self.impix[22,20] = 255
-                    self.impix[20,18] = 255
-                    self.impix[20,19] = 255
-                    self.impix[20,21] = 255
-                    self.impix[20,22] = 255
-                    #This rebins the numpy array larger so that it will better be a preview and will fit the QLabel
-                    self.impix = rebin(self.impix,5)
-                except:
-                    pass
+                #This next bit is to handle the preview problem at the boundary. it will create the preview based
+                #on mouse position, and boundary value if you get close to boundary.
+                ystart = event.ydata-self.previewsize
+                ystop  = event.ydata+self.previewsize
+                xstart = event.xdata-self.previewsize
+                xstop  = event.xdata+self.previewsize
+                ydif = 0
+                xdif = 0
+                if event.ydata<self.previewsize:
+                    ystart = 0
+                    ystop = self.previewsize*2
+                    ydif = self.previewsize-event.ydata
+                if event.ydata>self.image.shape[0]-1-self.previewsize:
+                    ystart = self.image.shape[0]-1-self.previewsize*2
+                    ystop = self.image.shape[0]-1
+                    ydif = (self.image.shape[0]-1-event.ydata)-self.previewsize
+                if event.xdata<self.previewsize:
+                    xstart = 0
+                    xstop  = self.previewsize*2
+                    xdif = self.previewsize-event.xdata
+                if event.xdata>self.image.shape[1]-1-self.previewsize:
+                    xstart = self.image.shape[1]-1-self.previewsize*2
+                    xstop  = self.image.shape[1]-1
+                    xdif = (self.image.shape[1]-1-event.xdata)-self.previewsize
+                if np.abs(ydif) > self.previewsize-3:
+                    ydif = self.previewsize-3
+                    if ydif <0:
+                        ydif = -1*ydif
+                if np.abs(xdif) > self.previewsize-3:
+                    ydif = self.previewsize-3
+                    if xdif <0:
+                        xdif = -1*xdif
+                self.impix = self.imageedit[ystart:ystop,xstart:xstop].copy()
+                #This next few lines is to simply set the values of several pixels to white in order to draw a cross hair
+                self.impix[self.previewsize-2-ydif,self.previewsize-xdif] = 255
+                self.impix[self.previewsize-1-ydif,self.previewsize-xdif] = 255
+                self.impix[self.previewsize+1-ydif,self.previewsize-xdif] = 255
+                self.impix[self.previewsize+2-ydif,self.previewsize-xdif] = 255
+                self.impix[self.previewsize-ydif,self.previewsize-2-xdif] = 255
+                self.impix[self.previewsize-ydif,self.previewsize-1-xdif] = 255
+                self.impix[self.previewsize-ydif,self.previewsize+1-xdif] = 255
+                self.impix[self.previewsize-ydif,self.previewsize+2-xdif] = 255
+                #This rebins the numpy array larger so that it will better be a preview and will fit the QLabel
+                self.impix = rebin(self.impix,self.rebinfactor)
                 #This next bit is to convert the numpy array into something that can be displayed as a pixmap, It needs to be updated to
                 #applying the colormap!
                 self.impix = self.func(self.impix,self.mx,self.imageedit.min())
@@ -397,26 +508,44 @@ class NTV(QMainWindow,Ui_NTV):
     
     def loadinfo(self):
         '''
-        Load in a file if no in embeded mode. BUG and future TO DO, allow embeded mode to still accept drag and drops and file opens. Function updates labels accordingly
+        Load in a file if no in embeded mode. Function updates labels accordingly
         '''
+        self.previewsize = self.previewsetting
+        self.rebinfactor = 200/self.previewsize/2
         #Load info if not in embed mode
+        if self.imagecube != None:
+            self.threed_win.close()
+            self.imagecube = None
         if self.pipe == None:
+            #close a threed window if one is open
             self.filelab.setText("<font color=blue>"+self.path+"</font>")
-            self.image = pf.getdata(self.path,header=False)
+            self.image,self.head = pf.getdata(self.path,header=True)
+            #This section loads the threed data if there is any. sets the frame as the first element,
+            #similar behaivor happens from the embed side function
+            if len(self.image.shape) == 3:
+                self.imagecube = self.image
+                self.image = self.image[0]
         #Set label according to embed mode
         if self.pipe != None:
             self.filelab.setText("<font color=blue>Numpy Array</font>")
+            #set pipe to none to allow data to be loaded from the program.
+            self.pipe = None
+        #start up the window that will allow changes to which image in the cube user is viewing
+        if self.imagecube != None:
+            self.threed_win = three_d(len(self.imagecube),parent=self)
+            self.threed_win.show()
         self.imageedit = self.image
         self.lincheck.setChecked(1)
         #Set funloaded to 1 to turn on interactions with UI elements
         self.funloaded = 1
-
+        #make sure default position for clip slide bar is maximum, can change this behaivor later if need be
         self.clipslide.setValue(self.clipslide.maximum())
-
+        #set associated information
         self.minlab.setText(str(self.image.min()))
         self.maxlab.setText(str(self.image.max()))
         self.xdim.setText(str(self.image.shape[1]))
         self.ydim.setText(str(self.image.shape[0]))
+        self.check_preview()
         self.drawim()
 
     def drawim(self):
@@ -427,7 +556,7 @@ class NTV(QMainWindow,Ui_NTV):
         self.imshow.canvas.ax.cla()
         self.imshow.canvas.format_labels()
         #The next two lines are a bit hacky but are required to properly turn the color map from the listbox to an object so that the map
-        #can be updated accordinglyyy
+        #can be updated accordingly
         self.ctext = str(self.cmapbox.currentText())
         exec('self.z = matplotlib.pyplot.cm.'+self.ctext)
         #This next line sets the maximum value in the image according to what vale the slider bar is at, basicaly its the maximum value times
@@ -437,6 +566,39 @@ class NTV(QMainWindow,Ui_NTV):
         self.imdata = self.imshow.canvas.ax.imshow(self.imageedit,vmax=float(self.mx),vmin=self.imageedit.min(),cmap=self.z,interpolation=None,alpha=1)
         self.imshow.canvas.draw()
 
+class three_d(QDialog,Ui_threeD,NTV):
+    def __init__(self,length,parent):
+        QDialog.__init__(self)
+        self.setupUi(self)
+        self.going = 0
+        self.length = length
+        self.fnumber.setText('0')
+        self.fnumbar.setMinimum(0)
+        self.fnumbar.setMaximum(self.length)
+        QObject.connect(self.fnumbar,SIGNAL('sliderReleased()'),self.go)
+        QObject.connect(self.play,SIGNAL('clicked()'),self.playback)
+        QObject.connect(self,SIGNAL('changeim'),parent.change_frame)
+        
+    def go(self):
+        self.newnum = int(self.fnumbar.value())
+        self.fnumber.setText(str(self.newnum))
+        self.emit(SIGNAL('changeim'),self.newnum)
+    def playback(self):
+        if self.going == 0:
+            self.going = 1
+            self.play.setText('stop')
+            self.speed = float(self.delay.text())
+            self.pthread = playThread(self.length,self.speed,parent=self)
+            self.pthread.start()
+            QObject.connect(self,SIGNAL('die'),self.pthread.kill,Qt.QueuedConnection)
+        else:
+            self.going = 0
+            self.play.setText('play')
+            self.emit(SIGNAL('die'))
+            
+    def update_slider(self,val):
+        self.fnumbar.setValue(val)
+        self.go()
 class myThread(QThread,NTV):
     '''
     This class is for internal use only. It inherets the QThread class, and is used to
@@ -452,7 +614,7 @@ class myThread(QThread,NTV):
         while True:
             self.data = self.conn.recv()
             if type(self.data) == np.ndarray:
-                if len(self.data.shape) == 2:
+                if len(self.data.shape) == 2 or len(self.data.shape) == 3:
                     self.emit(SIGNAL('got_it'),self.data)
             time.sleep(1)
             
@@ -468,6 +630,22 @@ class myThread2(QThread,details_view):
     def run(self):
         time.sleep(0.1)
         self.emit(SIGNAL('redraw'))
+
+class playThread(QThread,three_d):
+    def __init__(self,length,sleep,parent):
+        QThread.__init__(self)
+        self.bol = True
+        self.length = length
+        self.sleep = sleep
+        self.setTerminationEnabled(True)
+        self.connect(self,SIGNAL('update'),parent.update_slider)
+    def run(self):
+        while self.bol:
+            for num in range(self.length):
+                self.emit(SIGNAL('update'),num)
+                time.sleep(self.sleep)
+    def kill(self):
+        self.terminate()
 
 class embed():
     '''
@@ -511,6 +689,17 @@ if __name__=="__main__":
     
 '''
 TO DO:
-allow pipe mode to properly load in files via drag and drop events
-Implement 3d array support!
+Change the cursor to reflect white or black depending on background
+implement virtical and horizontal cut views in the details view
+implement more dialog information such as s/n calc, ap and an positions, fwhm
+need to put together an about page
+fix background color
+get wiki and doc writer
+update readme
+ask to see if, people would prefer multiple windows, or one window for deatils view, may
+make toggle option.
+look at weird minimap behaivor due to small array sizes
+need to update some comments in the code for the new features.
+stop three D window from closing
+add circles to view in display window
 ''' 
