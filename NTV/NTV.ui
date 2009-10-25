@@ -500,7 +500,7 @@
     </property>
     <addaction name="separator"/>
     <addaction name="actionOpen"/>
-    <addaction name="actionHeader"/>
+    <addaction name="actionPreferences"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
@@ -510,7 +510,15 @@
     </property>
     <addaction name="actionAbout"/>
    </widget>
+   <widget class="QMenu" name="menuImage">
+    <property name="title">
+     <string>Image</string>
+    </property>
+    <addaction name="actionHeader_2"/>
+    <addaction name="actionBlink"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuImage"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -538,6 +546,24 @@
   <action name="actionAbout">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="actionHeader_2">
+   <property name="text">
+    <string>Header</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+H</string>
+   </property>
+  </action>
+  <action name="actionPreferences">
+   <property name="text">
+    <string>Preferences</string>
+   </property>
+  </action>
+  <action name="actionBlink">
+   <property name="text">
+    <string>Blink</string>
    </property>
   </action>
  </widget>
