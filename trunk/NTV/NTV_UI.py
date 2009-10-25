@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'NTV.ui'
 #
-# Created: Mon Sep 28 15:50:28 2009
+# Created: Mon Oct  5 15:28:50 2009
 #      by: PyQt4 UI code generator 4.5.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -192,6 +192,8 @@ class Ui_NTV(object):
         self.menuFile.setObjectName("menuFile")
         self.menuHelp = QtGui.QMenu(self.menubar)
         self.menuHelp.setObjectName("menuHelp")
+        self.menuImage = QtGui.QMenu(self.menubar)
+        self.menuImage.setObjectName("menuImage")
         NTV.setMenuBar(self.menubar)
         self.statusbar = QtGui.QStatusBar(NTV)
         self.statusbar.setObjectName("statusbar")
@@ -204,13 +206,22 @@ class Ui_NTV(object):
         self.actionHeader.setObjectName("actionHeader")
         self.actionAbout = QtGui.QAction(NTV)
         self.actionAbout.setObjectName("actionAbout")
+        self.actionHeader_2 = QtGui.QAction(NTV)
+        self.actionHeader_2.setObjectName("actionHeader_2")
+        self.actionPreferences = QtGui.QAction(NTV)
+        self.actionPreferences.setObjectName("actionPreferences")
+        self.actionBlink = QtGui.QAction(NTV)
+        self.actionBlink.setObjectName("actionBlink")
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionOpen)
-        self.menuFile.addAction(self.actionHeader)
+        self.menuFile.addAction(self.actionPreferences)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionQuit)
         self.menuHelp.addAction(self.actionAbout)
+        self.menuImage.addAction(self.actionHeader_2)
+        self.menuImage.addAction(self.actionBlink)
         self.menubar.addAction(self.menuFile.menuAction())
+        self.menubar.addAction(self.menuImage.menuAction())
         self.menubar.addAction(self.menuHelp.menuAction())
 
         self.retranslateUi(NTV)
@@ -231,12 +242,17 @@ class Ui_NTV(object):
         self.label.setText(QtGui.QApplication.translate("NTV", "Clip Point", None, QtGui.QApplication.UnicodeUTF8))
         self.menuFile.setTitle(QtGui.QApplication.translate("NTV", "File", None, QtGui.QApplication.UnicodeUTF8))
         self.menuHelp.setTitle(QtGui.QApplication.translate("NTV", "Help", None, QtGui.QApplication.UnicodeUTF8))
+        self.menuImage.setTitle(QtGui.QApplication.translate("NTV", "Image", None, QtGui.QApplication.UnicodeUTF8))
         self.actionOpen.setText(QtGui.QApplication.translate("NTV", "Open", None, QtGui.QApplication.UnicodeUTF8))
         self.actionOpen.setShortcut(QtGui.QApplication.translate("NTV", "Ctrl+O", None, QtGui.QApplication.UnicodeUTF8))
         self.actionQuit.setText(QtGui.QApplication.translate("NTV", "Quit", None, QtGui.QApplication.UnicodeUTF8))
         self.actionHeader.setText(QtGui.QApplication.translate("NTV", "Header", None, QtGui.QApplication.UnicodeUTF8))
         self.actionHeader.setShortcut(QtGui.QApplication.translate("NTV", "Ctrl+H", None, QtGui.QApplication.UnicodeUTF8))
         self.actionAbout.setText(QtGui.QApplication.translate("NTV", "About", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionHeader_2.setText(QtGui.QApplication.translate("NTV", "Header", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionHeader_2.setShortcut(QtGui.QApplication.translate("NTV", "Ctrl+H", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionPreferences.setText(QtGui.QApplication.translate("NTV", "Preferences", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionBlink.setText(QtGui.QApplication.translate("NTV", "Blink", None, QtGui.QApplication.UnicodeUTF8))
 
 from mpl_pyqt4_widget import MPL_Widget
 import icons_rc

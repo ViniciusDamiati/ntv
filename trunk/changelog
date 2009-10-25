@@ -38,3 +38,15 @@ nate lust:	Fixed a bug where you could set aperature diameter or annulus diamete
 			the pointer in small minimap.
 		Updated spelling in details view.
 ### current ###
+nate lust:	Fixed a bug that was causing a segfault on some machines, when the sleeper theread 
+			not being properly terrminated.
+		Fixed a bug where if there was a zero or negitive number there was a problem when
+			switching to log view due to log of negitive number or zero
+		Added vertical and horrizontal cut views to the details dialog box.
+		Fixed a bug where the figures in the details view were not being drawn properly when
+			a resize event occurs.
+		Added a basic about message.
+		Implemented preference dialog. The user can now choose the preview size, the origin
+			location (when this happens the image is inverted, and the preivew is properly
+			inverted as well), the default cutsize for the details view, and wether the
+			details view draws over its own window or opens multiple windows.

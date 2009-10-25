@@ -10,7 +10,7 @@ from matplotlib.figure import Figure
 import numpy as N
 
 class MyMplCanvas(FigureCanvas):
-	def __init__(self, parent=None, width = 10, height = 12, dpi = 100, sharex = None, sharey = None):
+	def __init__(self, parent=None, width = 10, height = 8, dpi = 100, sharex = None, sharey = None):
 		self.fig = Figure(figsize = (width, height), dpi=dpi, facecolor = '#FFFFFF')
 		self.ax = self.fig.add_subplot(111, sharex = sharex, sharey = sharey)
 		self.fig.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9)

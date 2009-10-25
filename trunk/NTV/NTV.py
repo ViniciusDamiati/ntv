@@ -12,6 +12,11 @@ from NTV_UI import Ui_NTV
 from details import Ui_Dialog
 from header_ui import Ui_header
 from threeD_ui import Ui_threeD
+from pref import Ui_prefs
+
+#This variable is purely used for internal coding practices to force a config rewrite
+Update_config = False
+
 
 #This function is used to scale up the side preview to the same size as the Qlabel,
 #for better viewing
@@ -76,8 +81,67 @@ def fitgaussian(data):
     p, success = optimize.leastsq(errorfunction, params)
     return p
 
-
-
+class pref_box(QDialog,Ui_prefs):
+    def __init__(self,pref,parent):
+        QDialog.__init__(self)
+        self.setupUi(self)
+        #this next part is a hack since button groups are not properly handeled by pyuic4
+        self.bgroup1 = QButtonGroup()
+        self.bgroup1.addButton(self.preview20)
+        self.bgroup1.addButton(self.preview10)
+        self.bgroup1.addButton(self.preview5)
+        self.bgroup2 = QButtonGroup()
+        self.bgroup2.addButton(self.plotup)
+        self.bgroup2.addButton(self.plotdown)
+        self.bgroup3 = QButtonGroup()
+        self.bgroup3.addButton(self.overplot)
+        self.bgroup3.addButton(self.multi)
+        #end hack
+        self.pref = pref
+        self.preview_size = self.pref.value('previewsize').toInt()[0]
+        if self.preview_size == 20:
+            self.preview20.setChecked(1)
+        if self.preview_size == 10:
+            self.preview10.setChecked(1)
+        if self.preview_size == 5:
+            self.preview5.setChecked(1)
+        self.cut_size = str(self.pref.value('cutsize').toInt()[0])
+        self.cutsizeset.setText(self.cut_size)
+        self.origin_set = self.pref.value('origin').toString()
+        if self.origin_set == 'upper':
+            self.plotup.setChecked(1)
+        if self.origin_set == 'lower':
+            self.plotdown.setChecked(1)
+        self.dbox = self.pref.value('dbox').toInt()[0]
+        if self.dbox == 1:
+            self.overplot.setChecked(1)
+        if self.dbox == 0:
+            self.multi.setChecked(1)
+        QObject.connect(self.ok_sync,SIGNAL('clicked()'),self.accept)
+        QObject.connect(self,SIGNAL('reload'),parent.read_config)
+        QObject.connect(self,SIGNAL('redraw'),parent.drawim)
+        self.exec_()
+    def accept(self):
+        if self.preview20.isChecked():
+            self.pref.setValue('previewsize',20)
+        if self.preview10.isChecked():
+            self.pref.setValue('previewsize',10)
+        if self.preview5.isChecked():
+            self.pref.setValue('previewsize',5)
+        self.pref.setValue('cutsize',int(self.cutsizeset.text()))
+        if self.plotup.isChecked():
+            self.pref.setValue('origin','upper')
+        if self.plotdown.isChecked():
+            self.pref.setValue('origin','lower')
+        if self.overplot.isChecked():
+            self.pref.setValue('dbox',1)
+        if self.multi.isChecked():
+            self.pref.setValue('dbox',0)
+        self.pref.sync()
+        self.emit(SIGNAL('reload'))
+        self.emit(SIGNAL('redraw'))
+        self.close()
+        
 class header_view(QDialog,Ui_header):
     def __init__(self,cards,parent=None):
         super(header_view,self).__init__(parent)
@@ -100,6 +164,7 @@ class details_view(QDialog,Ui_Dialog):
         #set the inputs to class members and initialize some variables needed in plotting
         self.frame = frame
         self.framey,self.framex = self.frame.shape
+        #This next part is used to check and see if the cutsize needs changed
         if self.framey > self.framex:
             self.flimit = self.framey/2.
         else:
@@ -112,36 +177,48 @@ class details_view(QDialog,Ui_Dialog):
         self.apsize = apsize
         self.radin    = apsize*2
         self.radout   = apsize*3
+        self.thread3 = None
         self.limit_check()
         #sets the variable that will be used to pick lines and make decisions
         self.artist = None
         #Create a temporary view to centroid with, will be overridden when the true center is found
         view = frame[realy-self.cutsize:realy+self.cutsize,realx-self.cutsize:realx+self.cutsize]
         maxy,maxx = np.where(view==view.max())
-        maxy = int(realy-self.cutsize+maxy[0])
-        maxx = int(realx-self.cutsize+maxx[0])
+        maxy = realy-self.cutsize+maxy[0]
+        maxx = realx-self.cutsize+maxx[0]
         view = frame[maxy-self.cutsize:maxy+self.cutsize,maxx-self.cutsize:maxx+self.cutsize]-np.median(frame[maxy-self.cutsize:maxy+self.cutsize,maxx-self.cutsize:maxx+self.cutsize])
         #Finding center and correcting for the cut size
-        self.y,self.x = fitgaussian(view)[[1,2]]
-        #this is a fail safe for if fitgaussian fails
-        if np.abs(self.y) > 2*self.cutsize or np.abs(self.x) > 2*self.cutsize:
+        #The try statemet to to catch any problems when choosing a site that has no star
+        try:
+            self.y,self.x = fitgaussian(view)[[1,2]]
+            #this is a fail safe for if fitgaussian fails
+            if np.abs(self.y) > 2*self.cutsize or np.abs(self.x) > 2*self.cutsize:
+                self.y = self.cutsize
+                self.x = self.cutsize
+        except:
             self.y = self.cutsize
             self.x = self.cutsize
         self.totalx = maxx - self.cutsize + self.x
         self.totaly = maxy - self.cutsize + self.y
         self.xval.setText(str(self.totalx))
         self.yval.setText(str(self.totaly))
-        
         self.radprof.canvas.fig.canvas.mpl_connect('pick_event',self.on_pic)
         self.radprof.canvas.fig.canvas.mpl_connect('button_release_event',self.button_release_callback)
         self.radprof.canvas.fig.canvas.mpl_connect('motion_notify_event',self.motion_notify_callback)
         QObject.connect(self,SIGNAL('paint'),self.radprof.repaint)
+        QObject.connect(self,SIGNAL('resize()'),self.radprof.repaint)
         #self.draw_canvas()
         #This thread is a hack to get the canvas to redraw properly on the first draw. futures redraws are handled by the draw_cancas itself.
-        temp = myThread2(parent=self)
-        temp.start()
+        self.temp = myThread2(parent=self)
+        self.temp.start()
+        self.horcut.canvas.ax.plot(self.frame[maxy,:],'.')
+        self.vertcut.canvas.ax.plot(self.frame[:,maxx],'.')
         self.show()
     def limit_check(self):
+        '''
+        This function is used to check to make sure that the cutsize and radius and apsize is appropriate
+        for the size of the frame
+        '''
         if self.cutsize >= self.flimit:
             self.cutsize = self.flimit-1
         if self.radout >= self.flimit:
@@ -150,12 +227,23 @@ class details_view(QDialog,Ui_Dialog):
             self.radin = self.flimit/2.
         if self.apsize >= self.flimit:
             self.apsize = self.flimit/4.
-    
+    def dummy2(self):
+        '''
+        This function is just used to double check to make sure that the window redraw gets delayed
+        in order to have it drawn properly
+        '''
+        self.radprof.canvas.ax.cla()
+        self.radprof.canvas.format_labels()        
+        self.vis.canvas.ax.cla()
+        self.vis.canvas.format_labels()
+        self.draw_canvas()
     def dummy(self):
         '''
         This is the function that facillitates the posponed drawing of the plot via the separate thread.
         '''
         self.radprof.canvas.fig.canvas.mpl_connect('draw_event',self.draw_callback)
+        self.radprof.canvas.ax.cla()
+        self.radprof.canvas.format_labels()        
         self.vis.canvas.ax.cla()
         self.vis.canvas.format_labels()
         self.draw_canvas()
@@ -194,7 +282,11 @@ class details_view(QDialog,Ui_Dialog):
         self.radprof.canvas.format_labels()
         #emit a paint signal to make sure the window is redrawn properly
         self.emit(SIGNAL('paint'))
-
+    def resizeEvent(self,ev):
+        if self.thread3 != None:
+            self.thread3.quit()
+        self.thread3 = myThread3(parent=self)
+        self.thread3.start()
     def on_pic(self,event):
         '''
         This function is called when one of the vertical lines is selected, set the line selected
@@ -236,6 +328,7 @@ class details_view(QDialog,Ui_Dialog):
             #clear and format the axis to prevent memory overflow
             self.radprof.canvas.ax.cla()
             self.radprof.canvas.format_labels()
+            #check to make sure that new limits are w/n the image size
             self.limit_check()
             #redraw the canvas
             self.draw_canvas()
@@ -274,6 +367,18 @@ class NTV(QMainWindow,Ui_NTV):
     def __init__(self,file=None,parent=None,pipe=None):
         super(NTV,self).__init__(parent)
         self.setupUi(self)
+        QCoreApplication.setOrganizationName('NTV_project')
+        QCoreApplication.setOrganizationDomain('code.google.com/p/ntv/')
+        QCoreApplication.setApplicationName('NTV')
+        self.settings = QSettings()
+        #check to see if a config file has been created if not create one
+        if self.settings.value('has_config').toInt()[0] == 0:
+            self.write_config()
+        #If new preference objects are added, 
+        if Update_config == True:
+            self.write_config()
+        #load the information from the save file
+        self.read_config()
         #change the scope of the pipe object in order for it to be referenced from other parts of the class
         self.pipe = pipe
         
@@ -281,15 +386,11 @@ class NTV(QMainWindow,Ui_NTV):
         #previewsize is a constant used to get the size of the cut for the minimap. cid is to initialize a check of weather the pic star
         #button has been clicked yet or not.
         self.funloaded = 0
-        self.previewsetting = 20
-        self.previewsize = self.previewsetting
-        self.rebinfactor = 200/self.previewsize/2
         self.cid = None
         self.head = None
         self.imagecube = None
         
         #Set some UI elements
-        self.sizeofcut.setText('3')
         
         #This handels dranging and dropping operations
         self.centy.dragEnterEvent = self.lbDragEnterEvent
@@ -316,8 +417,10 @@ class NTV(QMainWindow,Ui_NTV):
         QObject.connect(self.lincheck,SIGNAL('toggled(bool)'),self.scale)
         QObject.connect(self.logcheck,SIGNAL('toggled(bool)'),self.scale)
         QObject.connect(self.actionOpen,SIGNAL('triggered()'),self.open)
-        QObject.connect(self.actionHeader,SIGNAL('triggered()'),self.header)
+        QObject.connect(self.actionHeader_2,SIGNAL('triggered()'),self.header)
+        QObject.connect(self.actionAbout,SIGNAL('triggered()'),self.about)
         QObject.connect(self.actionQuit,SIGNAL('triggered()'),self.close)
+        QObject.connect(self.actionPreferences,SIGNAL('triggered()'),self.prefer)
         QObject.connect(self.pushButton,SIGNAL('clicked()'),self.getclick)
         
         #fuctions for minimap scaling
@@ -331,11 +434,55 @@ class NTV(QMainWindow,Ui_NTV):
                 self.loadinfo()
             else:
                 self.filelab.setText('<font color=red>Invalid Format</font>')
+    
+    def prefer(self):
+        pref_box(self.settings,parent=self)
+    
+    def about(self):
+        '''
+        displays the about message
+        '''
+        msg = '''NTV
+        This program is to help visualize astronomical data, and update available tools such as ATV which is an idl project. NTV is designed to integrate better with python and is designed to be easily exteded for future needs.
+        
+        Website: code.google.com/p/ntv/
+        Written by: Nate Lust, University of Central Florida.
+        '''
+        QMessageBox.about(self,'NTV about',msg)
+    def write_config(self):
+        '''
+        Initialize the config file if one dose not exist
+        '''
+        self.settings.setValue('previewsize',20)
+        self.settings.setValue('cutsize',3)
+        self.settings.setValue('origin','upper')
+        self.settings.setValue('dbox',0)
+        self.settings.setValue('has_config',1)
+        self.settings.sync()
+    def read_config(self):
+        '''
+        reads the config file from the system and sets the constants, and program flow
+        based on this.
+        '''
+        self.previewsetting = self.settings.value('previewsize').toInt()[0]
+        self.previewsize = self.previewsetting
+        self.rebinfactor = 200/self.previewsize/2
+        self.cutrad = self.settings.value('cutsize').toInt()[0]
+        self.orig = self.settings.value('origin').toString()
+        self.dboxplot = self.settings.value('dbox').toInt()[0]
+        self.sizeofcut.setText(str(self.cutrad))
     def check_preview(self):
+        '''
+        This is to check to make sure that the preview size is less than the size of a fits file,
+        if it is now, it decreases the preview size.
+        '''
         if self.image.shape[0]<self.previewsize*2 or self.image.shape[1]<self.previewsize*2:
             self.previewsize = 5
             self.rebinfactor=200/self.previewsize/2
     def change_frame(self,newnum):
+        '''
+        changes which image in a data cube is bing drawn. Updated from 3dviewr
+        '''
         self.image = self.imagecube[newnum]
         self.scale()
     def header(self):
@@ -349,7 +496,6 @@ class NTV(QMainWindow,Ui_NTV):
         '''
         This is the fucntion that is used to update the image variable of the class if the program is used in embeded mode, and an array is passed to the pipe.
         '''
-        self.pipe = None
         #Load the data into a cube and set the image to the first entry, if it is a threed cube
         if len(array.shape) == 3:
             #this will close a pre existing window if one is open.
@@ -360,7 +506,7 @@ class NTV(QMainWindow,Ui_NTV):
         else:
             self.image = array
         self.loadinfo()
-    
+    	self.pipe = None
     def getclick(self):
         '''
         This is just a wrapper class to pass the get star button event to the drawbox function. Uses the mpl backend to connect to the canvas object and get the event.
@@ -379,8 +525,27 @@ class NTV(QMainWindow,Ui_NTV):
         if self.funloaded == 1:
             #get aperature size from size of cut widget
             cutv = int(self.sizeofcut.text())
-            #create an instance of details_view class
-            details_view(self.image,self.imageedit,event.xdata,event.ydata,cutv,self.mx,self.imageedit.min(),self.z)
+
+            #create an instance of details_view class. The if statement is to check and see if the box should be overplotted or not
+            if self.dboxplot == 0:
+                print "lots"
+                details_view(self.image,self.imageedit,event.xdata,event.ydata,cutv,self.mx,self.imageedit.min(),self.z)
+            if self.dboxplot == 1:
+                #Try statement is to catch if there is not a window open already
+                try:
+                    #Save the location on the screen to restore too
+                    self.detail_geometry = self.details_box.geometry()
+                    #close the existing box
+                    self.details_box.close()            
+                except:
+                    pass
+                #Create the window to keep track of details view
+                self.details_box = details_view(self.image,self.imageedit,event.xdata,event.ydata,cutv,self.mx,self.imageedit.min(),self.z)
+                try:
+                    #Try and reset the geometry, try is used to catch if the window is not open
+                    self.details_box.setGeometry(self.detail_geometry)
+                except:
+                    pass
             #disconnect the canvas from clicks, so that it can still be used for functions such as zooming etc.
             self.imshow.canvas.fig.canvas.mpl_disconnect(self.cid)
 
@@ -416,7 +581,7 @@ class NTV(QMainWindow,Ui_NTV):
    
     def mouseplace(self,event):
         '''
-        Handels the mouse motion over the imshow mpl canvas object, TO DO: handel the edge events properly
+        Handels the mouse motion over the imshow mpl canvas object. To Do, updated color map correctly
         '''
         #checks to see if the data has been loaded
         if self.funloaded == 1:
@@ -454,7 +619,10 @@ class NTV(QMainWindow,Ui_NTV):
                     ydif = self.previewsize-3
                     if xdif <0:
                         xdif = -1*xdif
-                self.impix = self.imageedit[ystart:ystop,xstart:xstop].copy()
+                if self.orig == 'upper':
+                    self.impix = self.imageedit[ystart:ystop,xstart:xstop].copy()
+                else:
+                    self.impix = self.imageedit[ystart:ystop,xstart:xstop][::-1].copy()
                 #This next few lines is to simply set the values of several pixels to white in order to draw a cross hair
                 self.impix[self.previewsize-2-ydif,self.previewsize-xdif] = 255
                 self.impix[self.previewsize-1-ydif,self.previewsize-xdif] = 255
@@ -496,7 +664,9 @@ class NTV(QMainWindow,Ui_NTV):
                 self.imageedit = self.image
                 self.drawim()
             if self.logcheck.isChecked():
-                self.imageedit = np.log(self.image)
+                self.imageedit = self.image.copy()
+                self.imageedit[np.where(self.imageedit <=0)]=0.001
+                self.imageedit = np.log(self.imageedit)
                 self.drawim()
     
     def cmapupdate(self):
@@ -513,9 +683,10 @@ class NTV(QMainWindow,Ui_NTV):
         self.previewsize = self.previewsetting
         self.rebinfactor = 200/self.previewsize/2
         #Load info if not in embed mode
-        if self.imagecube != None:
-            self.threed_win.close()
-            self.imagecube = None
+        if self.pipe == None:
+		if self.imagecube != None:
+            		self.threed_win.close()
+            		self.imagecube = None
         if self.pipe == None:
             #close a threed window if one is open
             self.filelab.setText("<font color=blue>"+self.path+"</font>")
@@ -563,13 +734,13 @@ class NTV(QMainWindow,Ui_NTV):
         #the ratio of of the silder position over 100 added to the minimum value
         self.mx = (self.imageedit.max()-self.imageedit.min())*self.clipslide.value()/100. + self.imageedit.min()
         #updated the canvas and draw
-        self.imdata = self.imshow.canvas.ax.imshow(self.imageedit,vmax=float(self.mx),vmin=self.imageedit.min(),cmap=self.z,interpolation=None,alpha=1)
+        self.imdata = self.imshow.canvas.ax.imshow(self.imageedit,vmax=float(self.mx),vmin=self.imageedit.min(),cmap=self.z,interpolation=None,alpha=1,origin=self.orig)
         self.imshow.canvas.draw()
 
 class three_d(QDialog,Ui_threeD,NTV):
     def __init__(self,length,parent):
         QDialog.__init__(self)
-        self.setupUi(self)
+        self.setupUi(self) 
         self.going = 0
         self.length = length
         self.fnumber.setText('0')
@@ -628,8 +799,25 @@ class myThread2(QThread,details_view):
         QThread.__init__(self)
         QObject.connect(self,SIGNAL('redraw'),parent.dummy)
     def run(self):
-        time.sleep(0.1)
+        time.sleep(0.3)
         self.emit(SIGNAL('redraw'))
+        self.sleep(2)
+        self.exec_()
+
+class myThread3(QThread,details_view):
+    '''
+    This class is for internal use only, It simply delays the drawing of the radial profile till after the details view
+    instance has been created. This solves a problem where the axes were getting blacked out and a repaint was in need to 
+    be forced.
+    '''
+    def __init__(self,parent):
+        QThread.__init__(self)
+        QObject.connect(self,SIGNAL('redraw'),parent.dummy2)
+    def run(self):
+        time.sleep(0.01)
+        self.emit(SIGNAL('redraw'))
+        self.sleep(2)
+        self.exec_()
 
 class playThread(QThread,three_d):
     def __init__(self,length,sleep,parent):
@@ -690,16 +878,13 @@ if __name__=="__main__":
 '''
 TO DO:
 Change the cursor to reflect white or black depending on background
-implement virtical and horizontal cut views in the details view
 implement more dialog information such as s/n calc, ap and an positions, fwhm
-need to put together an about page
 fix background color
 get wiki and doc writer
 update readme
-ask to see if, people would prefer multiple windows, or one window for deatils view, may
-make toggle option.
 look at weird minimap behaivor due to small array sizes
 need to update some comments in the code for the new features.
 stop three D window from closing
 add circles to view in display window
+make minimum time in playback 0.5 seconds
 ''' 
