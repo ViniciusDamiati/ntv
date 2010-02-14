@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1208</width>
-    <height>705</height>
+    <width>1103</width>
+    <height>609</height>
    </rect>
   </property>
   <property name="palette">
@@ -25,9 +25,9 @@
      <colorrole role="Window">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>211</red>
-        <green>231</green>
-        <blue>236</blue>
+        <red>236</red>
+        <green>221</green>
+        <blue>199</blue>
        </color>
       </brush>
      </colorrole>
@@ -45,9 +45,9 @@
      <colorrole role="Window">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>211</red>
-        <green>231</green>
-        <blue>236</blue>
+        <red>236</red>
+        <green>221</green>
+        <blue>199</blue>
        </color>
       </brush>
      </colorrole>
@@ -56,18 +56,18 @@
      <colorrole role="Base">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>211</red>
-        <green>231</green>
-        <blue>236</blue>
+        <red>236</red>
+        <green>221</green>
+        <blue>199</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Window">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>211</red>
-        <green>231</green>
-        <blue>236</blue>
+        <red>236</red>
+        <green>221</green>
+        <blue>199</blue>
        </color>
       </brush>
      </colorrole>
@@ -95,7 +95,7 @@
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <property name="rightMargin">
-       <number>100</number>
+       <number>430</number>
       </property>
       <item>
        <widget class="QLabel" name="filelab">
@@ -149,20 +149,6 @@
           <width>75</width>
           <height>16777215</height>
          </size>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="ycheckbox">
-        <property name="text">
-         <string>Show Y view</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="xcheckbox">
-        <property name="text">
-         <string>Show X view</string>
         </property>
        </widget>
       </item>
@@ -457,6 +443,16 @@
        </widget>
       </item>
       <item>
+       <widget class="MPL_Widget" name="imshow" native="true">
+        <property name="minimumSize">
+         <size>
+          <width>650</width>
+          <height>450</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item>
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
          <widget class="QLabel" name="label">
@@ -485,77 +481,7 @@
         </item>
        </layout>
       </item>
-      <item>
-       <layout class="QGridLayout" name="gridLayout_2">
-        <item row="0" column="0">
-         <widget class="QGraphicsView" name="ygview">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>100</width>
-            <height>450</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>150</width>
-            <height>16777215</height>
-           </size>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="MPL_Widget" name="imshow" native="true">
-          <property name="minimumSize">
-           <size>
-            <width>450</width>
-            <height>450</height>
-           </size>
-          </property>
-          <zorder>xgview</zorder>
-          <zorder>xgview</zorder>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <spacer name="rob">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-          <property name="sizeType">
-           <enum>QSizePolicy::Expanding</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>0</width>
-            <height>100</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="1" column="1">
-         <widget class="QGraphicsView" name="xgview">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>100</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>16777215</width>
-            <height>150</height>
-           </size>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
      </layout>
-    </item>
-    <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_4"/>
     </item>
    </layout>
   </widget>
@@ -564,8 +490,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1208</width>
-     <height>21</height>
+     <width>1103</width>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

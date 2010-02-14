@@ -1,6 +1,6 @@
 README
 changelog
-ntv
+ntviewer
 setup.py
 NTV/NTV.py
 NTV/NTV_UI.py
@@ -10,4 +10,5 @@ NTV/header_ui.py
 NTV/icons_rc.py
 NTV/mpl_pyqt4_widget.py
 NTV/mpl_pyqt4_widget_new.py
+NTV/pref.py
 NTV/threeD_ui.py
