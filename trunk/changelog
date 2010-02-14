@@ -50,3 +50,17 @@ nate lust:	Fixed a bug that was causing a segfault on some machines, when the sl
 			location (when this happens the image is inverted, and the preivew is properly
 			inverted as well), the default cutsize for the details view, and wether the
 			details view draws over its own window or opens multiple windows.
+		Added a y and x cut window, able to be hidden or shown, need to add the ability to draw
+			the actual cut
+		Updated the color to be more usefull
+		Fixed an issue where when you had a resized window, then changed the scaling it would 
+			redraw the frame at full size. This now behaives as expected. changing the 
+			flux scale now preserves the zoom. This is done by recording the ax limits before
+			redraw and resetting the limits after the draw. This gets overridden when loading
+			a new frame. 
+		Addes the virtical and horrizontal profile view that track the mouse motion. OpenGL can
+			be used to accellerate the drawing if pyqt has the qtopengl binding 
+		Added a check to the embed class. If the function fails to fork a separate process inorder
+			to free the terminal, it should place NTV in a separate thread
+		Updated the system executeable to be ntviewer, as the previous ntv had problems with OS X
+			in that OS X dose not respect case, and copied the folder NTV over the executeable

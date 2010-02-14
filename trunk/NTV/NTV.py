@@ -8,6 +8,12 @@ import sys
 import time
 import scipy as sp
 
+try:
+    from PyQt4.QtOpenGL import *
+    hasopengl = 1
+except:
+    hasopengl = 0
+
 from NTV_UI import Ui_NTV
 from details import Ui_Dialog
 from header_ui import Ui_header
@@ -382,13 +388,24 @@ class NTV(QMainWindow,Ui_NTV):
         #change the scope of the pipe object in order for it to be referenced from other parts of the class
         self.pipe = pipe
         
+        #start by hiding the x and y views of the image
+        self.ygview.hide()
+        self.xgview.hide()
+        
+        #This will accelerate the drawing of the canvas if qtopengl is available in pyqt
+        if hasopengl == 1:
+            self.ygview.setViewport(QGLWidget())
+            self.xgview.setViewport(QGLWidget())
+        
+        
         #Constants used by program, funloaded gets set to 1 when there is a file loaded, provides a check for manipulating functions
         #previewsize is a constant used to get the size of the cut for the minimap. cid is to initialize a check of weather the pic star
-        #button has been clicked yet or not.
+        #button has been clicked yet or not. homeImage is used to tell draw image when a new image is being loaded. 
         self.funloaded = 0
         self.cid = None
         self.head = None
         self.imagecube = None
+        self.homeImage = 0
         
         #Set some UI elements
         
@@ -422,6 +439,8 @@ class NTV(QMainWindow,Ui_NTV):
         QObject.connect(self.actionQuit,SIGNAL('triggered()'),self.close)
         QObject.connect(self.actionPreferences,SIGNAL('triggered()'),self.prefer)
         QObject.connect(self.pushButton,SIGNAL('clicked()'),self.getclick)
+        QObject.connect(self.ycheckbox,SIGNAL('toggled(bool)'),self.showy)
+        QObject.connect(self.xcheckbox,SIGNAL('toggled(bool)'),self.showx)
         
         #fuctions for minimap scaling
         self.lin = lambda x,max,min: (255/(max-min))*x-(255*max/(max-min))+255
@@ -434,6 +453,25 @@ class NTV(QMainWindow,Ui_NTV):
                 self.loadinfo()
             else:
                 self.filelab.setText('<font color=red>Invalid Format</font>')
+    def showy(self):
+        '''
+        This function toggles the y virtical view around the cursor
+        '''
+        if self.ycheckbox.isChecked():
+            self.ygview.show()
+
+        else:
+            self.ygview.hide()
+    
+    def showx(self):
+        '''
+        This function toggles the x virtical view around the cursor
+        '''
+        if self.xcheckbox.isChecked():
+            self.xgview.show()
+        else:
+            self.xgview.hide()
+    
     
     def prefer(self):
         pref_box(self.settings,parent=self)
@@ -581,7 +619,8 @@ class NTV(QMainWindow,Ui_NTV):
    
     def mouseplace(self,event):
         '''
-        Handels the mouse motion over the imshow mpl canvas object. To Do, updated color map correctly
+        Handels the mouse motion over the imshow mpl canvas object. To Do, updated color map correctly. This function now  also
+        updates the x and y views if they are visible need better handeling of sizes and edge handeling for x and y views
         '''
         #checks to see if the data has been loaded
         if self.funloaded == 1:
@@ -648,6 +687,66 @@ class NTV(QMainWindow,Ui_NTV):
                 #result.setColorTable(COLORTABLE)
                 self.minipix.setPixmap(QPixmap(result))
                 self.pixval.setText(str(self.image[event.ydata,event.xdata]))
+                
+                #this next part is to mess with the y cut view
+                if self.ycheckbox.isChecked():
+                                #delete previous scene if there
+                                try:
+                                    del self.sceney
+                                except:
+                                    pass
+                                self.sceney = QGraphicsScene()
+                                #set to viewing every other pixel if in full frame
+                                if self.imshow.canvas.ax.get_ylim()[0] -self.imshow.canvas.ax.get_ylim()[1] == self.imageedit.shape[0]:
+                                    self.ybarheights = self.imageedit[::2,event.xdata]
+                                    self.ybaroffset=0
+                                else:
+                                    self.ybarheights = self.imageedit[int(self.imshow.canvas.ax.get_ylim()[1]):int(self.imshow.canvas.ax.get_ylim()[0]),event.xdata]
+                                    self.ybaroffset=2
+                                for index in np.arange(len(self.ybarheights)):
+                                    self.sceney.addRect(0,index+index*self.ybaroffset,self.ybarheights[index]*(self.ygview.size().width()/self.ybarheights.max()),self.ybaroffset)                                
+                                maxy = QGraphicsTextItem("Maxium: "+str(self.ybarheights.max()))
+                                maxy.setPos(self.ybarheights.max()*(self.ygview.size().width()/self.ybarheights.max()),index+index*self.ybaroffset+10)
+                                maxy.rotate(90)
+                                self.sceney.addItem(maxy)
+                                medy = QGraphicsTextItem("Median: "+str(np.median(self.ybarheights)))
+                                medy.setPos(np.median(self.ybarheights)*(self.ygview.size().width()/self.ybarheights.max()),index+index*self.ybaroffset+10)
+                                medy.rotate(90)
+                                self.sceney.addItem(medy)
+                                
+                                self.ygview.setScene(self.sceney)
+                                self.ygview.fitInView(0.,0.,self.ygview.size().width(),self.ygview.size().height())
+                if self.xcheckbox.isChecked():
+                                #delete previous scene if there
+                                try:
+                                    del self.scenex
+                                    del maxy,medy,maxx,medx
+                                except:
+                                    pass
+                                self.scenex = QGraphicsScene()
+                                #set to viewing every other pixel if in full frame
+
+                                if self.imshow.canvas.ax.get_xlim()[1] -self.imshow.canvas.ax.get_xlim()[0] == self.imageedit.shape[1]:
+                                    self.xbarheights = self.imageedit[event.ydata,::2]
+                                    self.xbaroffset=0
+                                    
+                                else:
+                                    self.xbarheights = self.imageedit[event.ydata,int(self.imshow.canvas.ax.get_xlim()[0]):int(self.imshow.canvas.ax.get_xlim()[1])]
+                                    self.xbaroffset=2
+                                for indexx in np.arange(len(self.xbarheights)):
+                                    self.scenex.addRect(indexx+indexx*self.xbaroffset,0,self.xbaroffset,-1*self.xbarheights[indexx]*(self.xgview.size().height()/self.xbarheights.max()))                                
+                                maxx = QGraphicsTextItem("Maxium: "+str(self.xbarheights.max()))
+                                maxx.setPos(indexx+indexx*self.xbaroffset+10,-1*self.xbarheights.max()*(self.xgview.size().height()/self.xbarheights.max()))
+                                self.scenex.addItem(maxx)
+                                medx = QGraphicsTextItem("Median: "+str(np.median(self.xbarheights)))
+                                medx.setPos(indexx+indexx*self.xbaroffset+10,-1*np.median(self.xbarheights)*(self.xgview.size().height()/self.xbarheights.max()))
+                                self.scenex.addItem(medx)
+                                
+                                self.xgview.setScene(self.scenex)
+                                self.xgview.fitInView(0.,0.,self.xgview.size().width(),self.xgview.size().height())
+
+                
+                
     def sliderupdate(self):
         '''
         Updates the image clipping based on the value of the slider bar.
@@ -717,13 +816,18 @@ class NTV(QMainWindow,Ui_NTV):
         self.xdim.setText(str(self.image.shape[1]))
         self.ydim.setText(str(self.image.shape[0]))
         self.check_preview()
+        self.homeImage = 1
         self.drawim()
 
     def drawim(self):
         '''
         This fucntion actually handles the drawing of the imshow mpl canvas. It pulls the required elements from the ui on each redraw
         '''
+        #This is to preserve the zooming when redrawing the image for some reason
+        self.xlims = self.imshow.canvas.ax.get_xlim()
+        self.ylims = self.imshow.canvas.ax.get_ylim()
         #Clear and update the axis on each redraw, this is nessisary to avoid a memory leak
+        print 'before draw',self.imshow.canvas.ax.get_xlim()
         self.imshow.canvas.ax.cla()
         self.imshow.canvas.format_labels()
         #The next two lines are a bit hacky but are required to properly turn the color map from the listbox to an object so that the map
@@ -736,6 +840,12 @@ class NTV(QMainWindow,Ui_NTV):
         #updated the canvas and draw
         self.imdata = self.imshow.canvas.ax.imshow(self.imageedit,vmax=float(self.mx),vmin=self.imageedit.min(),cmap=self.z,interpolation=None,alpha=1,origin=self.orig)
         self.imshow.canvas.draw()
+        #This next bit checks if the limits should be restored after a redraw, the cases are at the start
+        #of the program or when a new image is loaded  
+        if self.homeImage == 0:
+            self.imshow.canvas.ax.set_ylim(self.ylims)
+            self.imshow.canvas.ax.set_xlim(self.xlims)
+        self.homeImage = 0
 
 class three_d(QDialog,Ui_threeD,NTV):
     def __init__(self,length,parent):
@@ -851,9 +961,13 @@ class embed():
     '''
     def __init__(self):
         from multiprocessing import Process, Pipe
+        from threading import Thread
         par,c = Pipe()
         self.par = par
-        self.p = Process(target=self.run,args=(c,))
+        try:
+            self.p = Process(target=self.run,args=(c,))
+        except:
+            self.p = Thread(target=self.run,args=(c,))
         self.p.start()
     def run(self,conn):
         self.app = QApplication(sys.argv)

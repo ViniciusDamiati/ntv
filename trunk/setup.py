@@ -2,11 +2,11 @@ from distutils.core import setup
 files = ["NTV/*"]
 
 setup(name = "NTV",
-version="0.3",
+version="0.3.1.alpha1",
 description="Astronomical Data Viewer",
 author="Nate Lust",
 author_email="nlust@physics.ucf.edu",
 packages=['NTV'],
 requires=['numpy','matplotlib','pyfits','PyQt4','scipy'],
 license="revised BSD",
-scripts=['ntv'])
+scripts=['ntviewer'])
