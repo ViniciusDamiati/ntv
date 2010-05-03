@@ -14,8 +14,8 @@ To run the program you can launch it with ntv from the command line.
 
 This can also be embeded into python interactive session.
 When in python,
-from NTV import NTV
-some_instance_name = NTV.embed()
+from NTV.embed import embed()
+some_instance_name = embed()
 
 to show an array:
 some_instance_name.showArray()
@@ -23,9 +23,11 @@ some_instance_name.showArray()
 Requirements:
 ---------------
 Numpy
+Scipy dependency is depricated I belive, if your setup complains, install it
 Scipy >0.7.0 I think, there are some complains about numpy.test, your 
 version may work, but mine does with this version.
+
 Matplotlib
-Pyfist
+Pyfits
 PyQt4
-Python > 2.6 OR multiprocessing package installed
+Python > 2.6 OR multiprocessing package installed for embeded mode

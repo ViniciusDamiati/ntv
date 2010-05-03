@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+from PyQt4.Qt import Qt
 
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4 import NavigationToolbar2QT as NavigationToolbar
@@ -67,4 +68,28 @@ class MPL_Widget(QWidget):
         self.vbox.addWidget(self.canvas)
         self.vbox.addWidget(self.toolbar)
         self.setLayout(self.vbox)
-
+        self.parent = parent
+    def enterEvent(self,ev):
+        self.setFocus()
+    def leaveEvent(self,ev):
+        self.parent.setFocus()
+    
+    def keyPressEvent(self, event):
+         if type(event) == QKeyEvent:
+             #here accept the event and do something
+             self.cursorpos = QCursor.pos()
+             if event.key() == Qt.Key_Up:
+                 self.cursorpos.setY(self.cursorpos.y()-1)
+                 QCursor.setPos(self.cursorpos)
+             if event.key() == Qt.Key_Down:
+                 self.cursorpos.setY(self.cursorpos.y()+1)
+                 QCursor.setPos(self.cursorpos)
+             if event.key() == Qt.Key_Left:
+                 self.cursorpos.setX(self.cursorpos.x()-1)
+                 QCursor.setPos(self.cursorpos)
+             if event.key() == Qt.Key_Right:
+                 self.cursorpos.setX(self.cursorpos.x()+1)
+                 QCursor.setPos(self.cursorpos)
+             event.accept()
+         else:
+             event.ignore()

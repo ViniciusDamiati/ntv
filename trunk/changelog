@@ -64,3 +64,11 @@ nate lust:	Fixed a bug that was causing a segfault on some machines, when the sl
 			to free the terminal, it should place NTV in a separate thread
 		Updated the system executeable to be ntviewer, as the previous ntv had problems with OS X
 			in that OS X dose not respect case, and copied the folder NTV over the executeable
+		Undid the try statement in embed and replaced it with a stronger if else statement, If
+			your not using os x it forks it, else it threads it
+		Added the ability to move the mouse in the image frame with the keys, this however is in
+			screen pixel scales, may be usefull to have only in image pixel movements
+		Fixed fixed the ability to embed NTV now provided by a standalone file called embed.
+			to put in your program, call from NTV.embed import embed. This is the embed class
+			created and instance and pass arrays with showArray
+		Fixed the justification in the header view, had to set the font pitch to fixed
