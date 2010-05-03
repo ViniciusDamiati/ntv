@@ -6,10 +6,11 @@ import pyfits as pf
 import matplotlib.pyplot
 import sys
 import time
-import scipy as sp
+
+#import scipy as sp
 
 try:
-    from PyQt4.QtOpenGL import *
+    from PyQt4.QtOpenGL import QGLWidget
     hasopengl = 1
 except:
     hasopengl = 0
@@ -152,9 +153,28 @@ class header_view(QDialog,Ui_header):
     def __init__(self,cards,parent=None):
         super(header_view,self).__init__(parent)
         self.setupUi(self)
-        for item in cards:
-            item = str(item)
-            self.cardlist.addItem(QListWidgetItem(item))         
+        font = QFont("Courier",11)
+        font.setFixedPitch(1)
+        self.cardlist.setFont(font)
+        key = []
+        keymax = 0
+        value = []
+        for index in range(len(cards)):
+            item = cards[index]
+            item = str(item).split('=')
+            one = item[0].strip()
+            two = item[1].strip()
+            key.append(one)
+            value.append(two)
+            if len(one) > keymax:
+                keymax = len(one)
+        for k in range(len(key)):
+            string = np.chararray(1,keymax+5-len(key[k]))
+            string=(keymax+5-len(key[k]))*' '
+            res = key[k]+str(string)+'=  '+value[k]
+            temp = QListWidgetItem(res)
+            temp.setTextAlignment(1)
+            self.cardlist.addItem(temp)       
         self.exec_()
 
 #This class implements the dialog box to display information on a particular object that a user
@@ -373,6 +393,7 @@ class NTV(QMainWindow,Ui_NTV):
     def __init__(self,file=None,parent=None,pipe=None):
         super(NTV,self).__init__(parent)
         self.setupUi(self)
+        #These lines set the application data used to save the settings
         QCoreApplication.setOrganizationName('NTV_project')
         QCoreApplication.setOrganizationDomain('code.google.com/p/ntv/')
         QCoreApplication.setApplicationName('NTV')
@@ -387,6 +408,7 @@ class NTV(QMainWindow,Ui_NTV):
         self.read_config()
         #change the scope of the pipe object in order for it to be referenced from other parts of the class
         self.pipe = pipe
+        self.pipesave = pipe
         
         #start by hiding the x and y views of the image
         self.ygview.hide()
@@ -399,7 +421,7 @@ class NTV(QMainWindow,Ui_NTV):
         
         
         #Constants used by program, funloaded gets set to 1 when there is a file loaded, provides a check for manipulating functions
-        #previewsize is a constant used to get the size of the cut for the minimap. cid is to initialize a check of weather the pic star
+        #cid is to initialize a check of weather the pic star
         #button has been clicked yet or not. homeImage is used to tell draw image when a new image is being loaded. 
         self.funloaded = 0
         self.cid = None
@@ -543,6 +565,7 @@ class NTV(QMainWindow,Ui_NTV):
             self.imagecube = array
         else:
             self.image = array
+        self.pipe = self.pipesave
         self.loadinfo()
     	self.pipe = None
     def getclick(self):
@@ -591,7 +614,13 @@ class NTV(QMainWindow,Ui_NTV):
         '''
         Impliments open from the file menu and updates the program accordingly
         '''
-        file = str(QFileDialog.getOpenFileName(self,'Select Files to Process','~/'))
+        #This is to ensure the loading of info happens correctly and that ntv dosnt stay stuf on embed
+        self.pipe=None
+        #try statement simply to catch the terminal output
+        try:
+            file = str(QFileDialog.getOpenFileName(self,'Select Files to Process','~/'))
+        except:
+            pass
         if file.find('fits') != -1 or file.find('FIT')!=-1:
             self.path = file
             self.loadinfo()
@@ -827,7 +856,7 @@ class NTV(QMainWindow,Ui_NTV):
         self.xlims = self.imshow.canvas.ax.get_xlim()
         self.ylims = self.imshow.canvas.ax.get_ylim()
         #Clear and update the axis on each redraw, this is nessisary to avoid a memory leak
-        print 'before draw',self.imshow.canvas.ax.get_xlim()
+        
         self.imshow.canvas.ax.cla()
         self.imshow.canvas.format_labels()
         #The next two lines are a bit hacky but are required to properly turn the color map from the listbox to an object so that the map
@@ -945,8 +974,10 @@ class playThread(QThread,three_d):
     def kill(self):
         self.terminate()
 
+'''
+
 class embed():
-    '''
+    
     This is a class that adds the ability for ntv to be used from with in a python interpriter.
     In order to use this you must be using python > 2.6 or have the multiprocessing package
     installed.
@@ -958,17 +989,21 @@ class embed():
     >>> x = x.reshape(21,21)
     >>> my_instance = NTV.embed()
     >>> my_instance.showArray(x)
-    '''
+    
     def __init__(self):
+        #added thread for if multiprocess fails, still prefer process though, as this separates
+        #cpu useage of ntv from the terminal
         from multiprocessing import Process, Pipe
         from threading import Thread
+        import os
         par,c = Pipe()
         self.par = par
-        try:
+        if os.uname()[0] != 'Darwin':
             self.p = Process(target=self.run,args=(c,))
-        except:
-            self.p = Thread(target=self.run,args=(c,))
-        self.p.start()
+            self.p.start()
+        else:
+            self.p = ethread(c)
+            self.p.start()
     def run(self,conn):
         self.app = QApplication(sys.argv)
         self.win = NTV(pipe=conn)
@@ -976,7 +1011,7 @@ class embed():
         self.app.exec_()
     def showArray(self,array):
         self.par.send(array)
-
+'''
 if __name__=="__main__":
     #This is a section to run the 
     import sys
@@ -993,7 +1028,6 @@ if __name__=="__main__":
 TO DO:
 Change the cursor to reflect white or black depending on background
 implement more dialog information such as s/n calc, ap and an positions, fwhm
-fix background color
 get wiki and doc writer
 update readme
 look at weird minimap behaivor due to small array sizes
@@ -1001,4 +1035,7 @@ need to update some comments in the code for the new features.
 stop three D window from closing
 add circles to view in display window
 make minimum time in playback 0.5 seconds
+fix the x and y profile views to scale appropriately
+figure out why centering does not work some times in details view
+change import statements to make memory useage smaller
 ''' 
