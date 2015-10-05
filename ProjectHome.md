@@ -1,0 +1,1 @@
+This project was inspired by atv for idl, and motivated by a lack of good alternatives. This program is used to visualize Fits fils, and information about objects within those fits files.
